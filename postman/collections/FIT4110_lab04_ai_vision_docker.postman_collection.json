@@ -1,0 +1,430 @@
+{
+  "info": {
+    "_postman_id": "fit4110-lab04-team-vision",
+    "name": "FIT4110 Lab04 - TeamVision Docker Tests",
+    "description": "Postman/Newman tests for TeamVision AI Vision service running in Docker.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "const prefix = pm.environment.get('tracePrefix') || 'fit4110-lab04-teamvision';",
+          "pm.variables.set('traceId', prefix + '-' + Date.now());",
+          "pm.request.headers.upsert({ key: 'X-Trace-Id', value: pm.variables.get('traceId') });"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "01_Functional",
+      "item": [
+        {
+          "name": "GET /api/v1/vision/health - container is alive",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/vision/health"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test('Health has TeamVision status', function () {",
+                  "  pm.expect(json).to.have.property('status', 'UP');",
+                  "  pm.expect(json).to.have.property('modelStatus', 'READY');",
+                  "  pm.expect(json).to.have.property('service', 'team-vision');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /api/v1/vision/frame-detections - A2 happy path",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{authToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/vision/frame-detections",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"requestId\": \"req-a2-lab04-001\",\n  \"cameraId\": \"CAM-A101-01\",\n  \"roomId\": \"A101\",\n  \"frameUrl\": \"https://storage.smart-campus.local/frames/cam-a101-01.jpg\",\n  \"capturedAt\": \"2026-05-20T08:00:00Z\",\n  \"analysisTypes\": [\"SLEEPING_DETECTION\", \"PERSON_DETECTION\"]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 202', function () { pm.response.to.have.status(202); });",
+                  "const json = pm.response.json();",
+                  "pm.environment.set('detectionId', json.detectionId);",
+                  "pm.test('Response has detectionId and PROCESSING status', function () {",
+                  "  pm.expect(json).to.have.property('detectionId');",
+                  "  pm.expect(json).to.have.property('status', 'PROCESSING');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/v1/vision/frame-detections/{detectionId} - A2 result",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/vision/frame-detections/{{detectionId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test('Detection result has completed status and confidence', function () {",
+                  "  pm.expect(json).to.have.property('status', 'COMPLETED');",
+                  "  pm.expect(json.detections).to.be.an('array').that.is.not.empty;",
+                  "  pm.expect(json.detections[0].confidence).to.be.within(0, 1);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /api/v1/vision/analysis-jobs - A6 happy path",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{authToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/vision/analysis-jobs",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"requestId\": \"core-lab04-001\",\n  \"sourceService\": \"core-business\",\n  \"sourceId\": \"incident-001\",\n  \"mediaType\": \"IMAGE\",\n  \"mediaUrl\": \"https://storage.smart-campus.local/incidents/frame-001.jpg\",\n  \"roomId\": \"A203\",\n  \"cameraId\": \"CAM-A203-02\",\n  \"requestedAt\": \"2026-05-20T09:15:00Z\",\n  \"analysisTypes\": [\"FIGHTING_DETECTION\", \"PERSON_DETECTION\"]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 202', function () { pm.response.to.have.status(202); });",
+                  "const json = pm.response.json();",
+                  "pm.environment.set('jobId', json.jobId);",
+                  "pm.test('Response has jobId and PROCESSING status', function () {",
+                  "  pm.expect(json).to.have.property('jobId');",
+                  "  pm.expect(json).to.have.property('status', 'PROCESSING');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/v1/vision/models/info - model info",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/vision/models/info"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test('Model is ready and supports analysis types', function () {",
+                  "  pm.expect(json).to.have.property('status', 'READY');",
+                  "  pm.expect(json.supportedAnalysisTypes).to.include('FIGHTING_DETECTION');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02_Auth",
+      "item": [
+        {
+          "name": "POST /api/v1/vision/frame-detections - missing token",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/v1/vision/frame-detections",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"requestId\": \"auth-missing-001\",\n  \"cameraId\": \"CAM-A101-01\",\n  \"frameUrl\": \"https://storage.smart-campus.local/frames/cam-a101-01.jpg\",\n  \"capturedAt\": \"2026-05-20T08:00:00Z\",\n  \"analysisTypes\": [\"PERSON_DETECTION\"]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Missing token returns 401 or mock-compatible success', function () {",
+                  "  const env = pm.environment.get('env');",
+                  "  if (env === 'mock') pm.expect([202, 401]).to.include(pm.response.code);",
+                  "  else pm.expect(pm.response.code).to.eql(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /api/v1/vision/frame-detections - invalid token",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer invalid-token" }
+            ],
+            "url": "{{baseUrl}}/api/v1/vision/frame-detections",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"requestId\": \"auth-invalid-001\",\n  \"cameraId\": \"CAM-A101-01\",\n  \"frameUrl\": \"https://storage.smart-campus.local/frames/cam-a101-01.jpg\",\n  \"capturedAt\": \"2026-05-20T08:00:00Z\",\n  \"analysisTypes\": [\"PERSON_DETECTION\"]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Invalid token returns 401 or mock-compatible success', function () {",
+                  "  const env = pm.environment.get('env');",
+                  "  if (env === 'mock') pm.expect([202, 401]).to.include(pm.response.code);",
+                  "  else pm.expect(pm.response.code).to.eql(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03_Negative",
+      "item": [
+        {
+          "name": "POST /api/v1/vision/frame-detections - missing frameUrl",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{authToken}}" },
+              { "key": "Prefer", "value": "code=422" }
+            ],
+            "url": "{{baseUrl}}/api/v1/vision/frame-detections",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"requestId\": \"negative-001\",\n  \"cameraId\": \"CAM-A101-01\",\n  \"capturedAt\": \"2026-05-20T08:00:00Z\",\n  \"analysisTypes\": [\"PERSON_DETECTION\"]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Missing required field returns client error', function () { pm.expect([400, 422]).to.include(pm.response.code); });",
+                  "const json = pm.response.json();",
+                  "pm.test('Error follows ProblemDetails shape', function () {",
+                  "  pm.expect(json).to.have.property('status');",
+                  "  pm.expect(json.status).to.be.within(400, 599);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /api/v1/vision/analysis-jobs - invalid mediaUrl",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{authToken}}" },
+              { "key": "Prefer", "value": "code=422" }
+            ],
+            "url": "{{baseUrl}}/api/v1/vision/analysis-jobs",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"requestId\": \"negative-002\",\n  \"sourceService\": \"core-business\",\n  \"mediaType\": \"IMAGE\",\n  \"mediaUrl\": \"not-a-url\",\n  \"requestedAt\": \"2026-05-20T09:15:00Z\",\n  \"analysisTypes\": [\"FIGHTING_DETECTION\"]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Invalid mediaUrl returns client error', function () { pm.expect([400, 422]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04_Boundary_Reliability",
+      "item": [
+        {
+          "name": "GET /api/v1/vision/frame-detections/{detectionId} - invalid UUID",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/vision/frame-detections/not-a-uuid"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Invalid UUID returns client error', function () { pm.expect([400, 404, 422]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/v1/vision/analysis-jobs/{jobId} - unknown id",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/vision/analysis-jobs/660e8400-e29b-41d4-a716-446655449999"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Unknown job id returns not found or mock data', function () { pm.expect([200, 404]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05_Consumer_side_Smoke",
+      "item": [
+        {
+          "name": "Smoke A2 Camera -> A4 frame detection",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{authToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/vision/frame-detections",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"requestId\": \"smoke-a2-lab04-001\",\n  \"cameraId\": \"CAM-A201-01\",\n  \"roomId\": \"A201\",\n  \"frameUrl\": \"https://storage.smart-campus.local/frames/cam-a201-01.jpg\",\n  \"capturedAt\": \"2026-05-20T08:00:00Z\",\n  \"analysisTypes\": [\"PERSON_DETECTION\"]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('A2 can call A4 contract', function () { pm.expect(pm.response.code).to.eql(202); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Smoke A6 Core -> A4 analysis job",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{authToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/vision/analysis-jobs",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"requestId\": \"smoke-a6-lab04-001\",\n  \"sourceService\": \"core-business\",\n  \"sourceId\": \"incident-123\",\n  \"mediaType\": \"IMAGE\",\n  \"mediaUrl\": \"https://storage.smart-campus.local/incidents/frame-123.jpg\",\n  \"roomId\": \"A203\",\n  \"cameraId\": \"CAM-A203-02\",\n  \"requestedAt\": \"2026-05-20T09:15:00Z\",\n  \"analysisTypes\": [\"FIGHTING_DETECTION\"]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('A6 can call A4 contract', function () { pm.expect(pm.response.code).to.eql(202); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "06_Local_only_NonFunctional",
+      "item": [
+        {
+          "name": "GET /api/v1/vision/health - local response time",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/vision/health"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get('env') === 'local') {",
+                  "  pm.test('Local container responds under 1000ms', function () { pm.expect(pm.response.responseTime).to.be.below(1000); });",
+                  "} else {",
+                  "  pm.test('Skip local-only latency on mock', function () { pm.expect(true).to.eql(true); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

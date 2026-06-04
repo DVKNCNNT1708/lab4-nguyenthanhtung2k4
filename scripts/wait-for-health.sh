@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-URL="${1:-http://localhost:8000/health}"
+URL="${1:-http://localhost:8000/api/v1/vision/health}"
 TIMEOUT_SECONDS="${2:-30}"
 
 echo "Waiting for $URL ..."

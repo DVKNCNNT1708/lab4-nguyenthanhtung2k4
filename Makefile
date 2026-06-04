@@ -1,5 +1,5 @@
-IMAGE_NAME ?= fit4110/iot-ingestion:lab04
-CONTAINER_NAME ?= fit4110-iot-lab04
+IMAGE_NAME ?= fit4110/team-vision:lab04
+CONTAINER_NAME ?= fit4110-team-vision-lab04
 PORT ?= 8000
 
 install:
@@ -9,7 +9,7 @@ lint:
 	npm run lint:openapi
 
 mock:
-	npm run mock:iot
+	npm run mock:vision
 
 test-mock:
 	npm run test:mock
@@ -24,7 +24,7 @@ run-detached:
 	docker run -d --rm --name $(CONTAINER_NAME) -p $(PORT):8000 --env-file .env.example $(IMAGE_NAME)
 
 health:
-	curl http://localhost:$(PORT)/health
+	curl http://localhost:$(PORT)/api/v1/vision/health
 
 test-docker:
 	npm run test:local
