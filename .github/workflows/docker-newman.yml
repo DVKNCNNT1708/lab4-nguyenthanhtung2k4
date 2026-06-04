@@ -35,7 +35,20 @@ jobs:
             fit4110/team-vision:lab04
 
       - name: Wait for service health
-        run: npx wait-on http://localhost:8000/api/v1/vision/health --timeout 60000
+        run: |
+          for i in {1..30}; do
+            if curl -fsS http://localhost:8000/api/v1/vision/health; then
+              exit 0
+            fi
+            echo "Waiting for TeamVision health ($i/30)..."
+            docker ps -a
+            docker logs fit4110-team-vision-lab04 || true
+            sleep 2
+          done
+          echo "TeamVision health endpoint did not become ready"
+          docker ps -a
+          docker logs fit4110-team-vision-lab04 || true
+          exit 1
 
       - name: Run Newman against Docker container
         run: npm run test:local
